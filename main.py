@@ -1,4 +1,5 @@
-from assistants import TeachingAgent
+from core.assistants import TeachingAgent
+from core.utils import quick_delete
 from openai import OpenAI
 import tomllib
 from pathlib import Path
@@ -8,10 +9,10 @@ import os
 def main(client, config) -> None:
     ta = TeachingAgent(client)
     
-    ta.add_file(config["local"]["small1"])
-    ta.add_file(config["local"]["small2"])
+    ta.add_file(config["local"]["pdf1"])
+    ta.add_file(config["local"]["pdf2"])
     
-    
+    ta.build()
 
 
 if __name__ == "__main__":
@@ -23,3 +24,9 @@ if __name__ == "__main__":
     client = OpenAI(api_key=secret)
     
     main(client, config)
+    
+    
+    
+    import time
+    time.sleep(10)
+    quick_delete(client)
