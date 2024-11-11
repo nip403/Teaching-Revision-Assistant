@@ -1,9 +1,10 @@
 from openai import OpenAI
 import asyncio
+import tomllib
 import os
 
 class TeachingAgent:
-    def __init__(self, client: OpenAI) -> None:
+    def __init__(self, client: OpenAI, prompt: str) -> None:
         self.client = client
         self.vector_store = client.beta.vector_stores.create(
             chunking_strategy={
@@ -14,6 +15,17 @@ class TeachingAgent:
                 }
             },
             name="textbook",
+        )
+        
+        if not len(prompt):
+            with open("config.toml", "rb+") as f:
+                prompt_file = tomllib.load(f)["assistant"]["prompt"]
+                
+            with open("prompt_file")
+        
+        self.assistant = self.client.beta.assistants.create(
+            name="Teaching Assistant",
+            instructions=prompt,
         )
         
     async def _add_file(self, fp: str, _verbose: bool = True) -> str:
@@ -44,6 +56,21 @@ class TeachingAgent:
         
         if _verbose:
             print(out)
+            
+            
+        """
+        
+        Flow: 
+        1a) manually setup assistant with prompts
+        1b) pull assistant from api
+        
+        2) setup thread with assistant(s)
+        
+        3) initialise with creation of notes, present to user
+        
+        4) initialise conversation with user about topics        
+        
+        """
             
     def build(self) -> None:
         pass
