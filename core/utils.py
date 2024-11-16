@@ -1,5 +1,29 @@
 from openai import OpenAI
+from dataclasses import dataclass
+import tomllib
 
+with open("config.toml", "rb+") as f:
+    cfg = tomllib.load(f)
+    default_model = cfg["assistant"]["model"]
+    
+    with open(cfg["assistant"]["default_prompt"], "r") as g:
+        default_prompt = g.read()
+
+@dataclass(kw_only=True)
+class AssistantConfig: 
+    prompt: str = default_prompt
+    temperature: float = 1.0
+    top_p: float = 0.05
+    tools: list[dict[str, str]] = [{"type": "file_search"}]
+    model: str = default_model
+    # functions
+    
+def _validate(config: AssistantConfig | None) -> bool:
+    if config is None:
+        return True
+    
+    return True # TODO: validation
+    
 def quick_delete(client: OpenAI, blacklist_file_ids: list[str] = [], blacklist_vector_store_ids: list[str] = []) -> None: # danger! deletes all files in storage
     files = client.files.list()
     file_count = 0

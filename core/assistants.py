@@ -2,9 +2,12 @@ from openai import OpenAI
 import asyncio
 import tomllib
 import os
+from utils import AssistantConfig, _validate
 
 class TeachingAgent:
-    def __init__(self, client: OpenAI, prompt: str) -> None:
+    def __init__(self, client: OpenAI, config: AssistantConfig) -> None:
+        assert _validate(config), "Invalid Assistant config."
+        
         self.client = client
         self.vector_store = client.beta.vector_stores.create(
             chunking_strategy={
@@ -17,15 +20,19 @@ class TeachingAgent:
             name="textbook",
         )
         
-        if not len(prompt):
+        if config is not None:
             with open("config.toml", "rb+") as f:
-                prompt_file = tomllib.load(f)["assistant"]["prompt"]
+                prompt_file = tomllib.load(f)["assistant"]["default_prompt"]
                 
-            with open("prompt_file")
+            with open(prompt_file, "r") as f:
+                self.prompt = f.read()
+                
+        else:
+            self.prompt = config.prompt
         
         self.assistant = self.client.beta.assistants.create(
             name="Teaching Assistant",
-            instructions=prompt,
+            instructions=self.prompt,
         )
         
     async def _add_file(self, fp: str, _verbose: bool = True) -> str:
