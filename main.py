@@ -12,7 +12,8 @@ def main(client, config) -> None:
     ta.add_file(config["local"]["pdf1"])
     ta.add_file(config["local"]["pdf2"])
     
-    ta.build()
+    ta.session()
+    ta.close()
 
 
 if __name__ == "__main__":

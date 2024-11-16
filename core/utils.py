@@ -1,12 +1,12 @@
 from openai import OpenAI
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import tomllib
 
 with open("config.toml", "rb+") as f:
     cfg = tomllib.load(f)
     default_model = cfg["assistant"]["model"]
     
-    with open(cfg["assistant"]["default_prompt"], "r") as g:
+    with open(cfg["assistant"]["default_prompt_main"], "r") as g:
         default_prompt = g.read()
 
 @dataclass(kw_only=True)
@@ -14,9 +14,12 @@ class AssistantConfig:
     prompt: str = default_prompt
     temperature: float = 1.0
     top_p: float = 0.05
-    tools: list[dict[str, str]] = [{"type": "file_search"}]
     model: str = default_model
-    # functions
+    tools: list[dict[str, str]] = field(
+        default_factory=lambda: [{"type": "file_search"}]
+    )
+    
+    # assistant functions
     
 def _validate(config: AssistantConfig | None) -> bool:
     if config is None:
