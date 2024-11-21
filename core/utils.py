@@ -22,13 +22,17 @@ class AssistantConfig:
         default_factory=lambda: [{"type": "file_search"}]
     )
     
-    # assistant functions
-    
 def _validate(config: AssistantConfig | None) -> bool:
-    if config is None:
-        return True
-    
-    return True # TODO: validation
+    return config is None or ( # thank you chat gpt
+        isinstance(config.prompt, str) and config.prompt.strip() and
+        isinstance(config.temperature, (int, float)) and 0.0 <= config.temperature <= 2.0 and
+        isinstance(config.top_p, (int, float)) and 0.0 <= config.top_p <= 1.0 and
+        isinstance(config.model, str) and config.model.strip() and
+        isinstance(config.tools, list) and all(
+            isinstance(tool, dict) and "type" in tool and isinstance(tool["type"], str)
+            for tool in config.tools
+        )
+    )
     
 def quick_delete(client: OpenAI, blacklist_file_ids: list[str] = [], blacklist_vector_store_ids: list[str] = []) -> None: # danger! deletes all files in storage
     files = client.files.list()

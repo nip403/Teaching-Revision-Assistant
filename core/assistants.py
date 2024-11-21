@@ -2,8 +2,8 @@ from openai import OpenAI
 import asyncio
 import os
 import json
-from typing import NewType
-from .utils import AssistantConfig, _validate, cfg
+from typing import NewType, Callable
+from .utils import AssistantConfig, _validate, cfg, _parent
 from .logger import Logger
 
 Assistant = NewType("Assistant", object)
@@ -13,9 +13,8 @@ class TeachingAgent:
     def __init__(self, client: OpenAI, config: AssistantConfig | None = None, verbose: bool = True) -> None:
         assert _validate(config), "Invalid Assistant config."
         
-        self.logger = Logger(r"..\sessions.log", verbose=verbose)
+        self.logger = Logger(_parent / "sessions.log", verbose=verbose)
         self.client = client
-        self.ra = RevisionAgent(self.client, self.logger)
         self.in_session = False
         self.thread = self.client.beta.threads.create()
         self.vector_store = client.beta.vector_stores.create(
@@ -52,6 +51,7 @@ class TeachingAgent:
             }
         )
         
+        self.ra = RevisionAgent(self.assistant, self.client, self.logger)
         self.logger.log("Initialised assistant and vector storage.", "debug")
     
     def add_files(self, *filepaths: str | list[str]) -> None:
@@ -73,20 +73,21 @@ class TeachingAgent:
         )
         self.logger.log(f"Batch upload: {batch.status}")
         
-    async def session(self) -> None:
+    async def _session(self) -> None:
         if self.in_session:
             self.logger.log("Attempted call of another session, returning.", "warning")
             return 
         
         self.in_session = True
         
-        summary = asyncio.create_task(self.ra.prep_overview()) # attach end condition TODO TODO TODO
+        summary = asyncio.create_task(self.ra.prep_overview()) #summary.add_done_callback(func) - for app TODO TODO 
         thread = self.client.beta.threads.create()
         
         while True: 
             next_msg = input(r"Next chat (ENTER to return): ")
             
-            if not next_msg:
+            if not next_msg.strip():
+                summary.cancel()
                 break
             
             status, resp = TeachingAgent._handle_run_step(self.client, thread, self.assistant, next_msg, self.logger)
@@ -98,6 +99,9 @@ class TeachingAgent:
             print(f"TeachingAgent: {resp}\n")
            
         self.in_session = False    
+        
+    def session(self) -> None: # synchronous wrapper
+        asyncio.run(self._session())
         
     @staticmethod
     def _handle_run_step(client: OpenAI, thread: Thread, assistant: Assistant, prompt: str, logger: Logger | None = None) -> list[bool, str]:
@@ -132,7 +136,7 @@ class RevisionAgent:
         self.client = client
         self.logger = logger
         
-    async def _revision_guide(self, topics: dict[str, list[str]]) -> str:
+    async def _revision_guide(self, topics: dict[str, list[str]], log: Callable[[str, str], None]) -> str:
         """
         Generate a revision sheet for the provided content.        
         """
@@ -148,7 +152,7 @@ class RevisionAgent:
         optional: pass through another agent to format response to html or whatever
         """
         
-    async def _questions(self, topics: dict[str, list[str]], n: int = 5) -> str:
+    async def _questions(self, topics: dict[str, list[str]], log: Callable[[str, str], None], n: int = 5) -> str:
         """
         Generate a list of n questions which learners may ask about the revision material.      
         """
@@ -163,7 +167,7 @@ class RevisionAgent:
         assistant main 
         """
         
-    async def prep_overview(self, n: int = 5) -> list[dict[str, list[str]], str, list[str]]:
+    async def prep_overview(self, n_questions: int = 5) -> list[dict[str, list[str]], str, list[str]]:
         """
         Runs 2 pipelines concurrently:
         
@@ -207,7 +211,7 @@ class RevisionAgent:
         log("Created topic list.")
         
         async with asyncio.TaskGroup() as tg:
-            revision = asyncio.create_task(self._revision_guide(topics)) #summary.add_done_callback(func) - for app 
-            questions = asyncio.create_task(self._questions(topics, n))
+            revision = asyncio.create_task(self._revision_guide(topics, log)) 
+            questions = asyncio.create_task(self._questions(topics, log, n_questions))
         
         return topics, revision.result(), questions.result()

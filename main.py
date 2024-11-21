@@ -9,8 +9,8 @@ import os
 def main(client, config) -> None:
     ta = TeachingAgent(client)
     
-    ta.add_file(config["local"]["pdf1"])
-    ta.add_file(config["local"]["pdf2"])
+    ta.add_files(config["local"]["pdf1"])
+    ta.add_files(config["local"]["pdf2"])
     
     ta.session()
     ta.close()
