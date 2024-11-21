@@ -80,7 +80,7 @@ class TeachingAgent:
         
         self.in_session = True
         
-        summary = asyncio.create_task(self.ra.prep_overview())
+        summary = asyncio.create_task(self.ra.prep_overview()) # attach end condition TODO TODO TODO
         thread = self.client.beta.threads.create()
         
         while True: 
@@ -163,7 +163,7 @@ class RevisionAgent:
         assistant main 
         """
         
-    async def prep_overview(self, n: int = 5) -> dict[str]:
+    async def prep_overview(self, n: int = 5) -> list[dict[str, list[str]], str, list[str]]:
         """
         Runs 2 pipelines concurrently:
         
@@ -176,32 +176,38 @@ class RevisionAgent:
         overview_thread = self.client.beta.threads.create()
 
         # Step 1: generate list of topics and subtopics in json format 
-        # potential TODO: add a quality assurance agent
+        # potential TODO: add a quality assurance agent for formatting and faithfulness to content
         
         with open(cfg["prompts"]["topics"], "r") as f:
             topic_prompt = f.read()
         
-        status, resp = TeachingAgent._handle_run_step(self.client, overview_thread, self.assistant, topic_prompt, self.logger)
-        
-        topic_run = self.client.beta.threads.runs.create_and_poll(
-            thread_id=overview_thread.id,
-            assistant_id=self.assistant.id,
-            instructions=topic_prompt,
+        status, resp = TeachingAgent._handle_run_step(
+            self.client, 
+            overview_thread,
+            self.assistant, 
+            topic_prompt, 
+            type(
+                "LoggerOverview", 
+                (object, ), 
+                {"log": log},
+            ), # a cool yet horrible use case for metaclasses
         )
         
-        if topic.status == "completed":
-            messages = self.client.beta.threads.messages.list(
-                thread_id=thread.id,
-            )
+        self.client.beta.threads.delete(thread_id=overview_thread.id)
+        
+        try:
+            if not resp:
+                raise
             
-            print(messages)
-            
-        else:
-            print(run.status)
+            topics = json.loads(resp)
+        except:
+            log("Failed to generate topics from dataset.", "warning")
+            return dict()
             
         log("Created topic list.")
         
-        revision = await self._revision_guide(topics) #summary.add_done_callback(func) - for app 
-        questions = await self._questions(topics, n)
+        async with asyncio.TaskGroup() as tg:
+            revision = asyncio.create_task(self._revision_guide(topics)) #summary.add_done_callback(func) - for app 
+            questions = asyncio.create_task(self._questions(topics, n))
         
-print(cfg)
+        return topics, revision.result(), questions.result()
