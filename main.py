@@ -2,9 +2,6 @@ from core.assistants import TeachingAgent
 from core.utils import quick_delete
 from openai import OpenAI
 import tomllib
-from pathlib import Path
-import sys
-import os
 
 def main(client, config) -> None:
     ta = TeachingAgent(client)
