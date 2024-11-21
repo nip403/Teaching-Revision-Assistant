@@ -1,0 +1,7 @@
+[DEBUG] (2024-11-20 23:47:29,818): Initialised assistant and vector storage.
+[INFO] (2024-11-20 23:47:29,818): Uploading files\sample_1.pdf...
+[INFO] (2024-11-20 23:47:33,579): Batch upload: completed
+[INFO] (2024-11-20 23:47:33,579): Uploading files\sample_2.pdf...
+[INFO] (2024-11-20 23:47:37,060): Batch upload: completed
+[INFO] (2024-11-20 23:47:37,465): Deleted assistant.
+[INFO] (2024-11-20 23:47:37,675): Ended session. Create a new instance of TeachingAgent() for a new session.

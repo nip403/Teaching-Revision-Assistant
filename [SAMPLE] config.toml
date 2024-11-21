@@ -1,0 +1,16 @@
+[openai]
+secret = ""
+assistant_id_1 = ""
+model = "gpt-4o-mini"
+
+[local]
+pdf1 = 'files\sample_1.pdf'
+pdf2 = 'files\sample_2.pdf'
+small1 = 'files\sample_3.pdf'
+small2 = 'files\sample_4.pdf'
+
+[prompts]
+main = 'prompts\main.txt'
+topics = 'prompts\topics.txt'
+gen_questions = 'prompts\questions_pipeline\topic_questions.txt'
+pick_questions = 'prompts\questions_pipeline\eval_questions.txt'
