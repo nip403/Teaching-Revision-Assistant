@@ -15,7 +15,6 @@ def main(client, config) -> None:
     ta.session()
     ta.close()
 
-
 if __name__ == "__main__":
     with open("config.toml", "rb+") as f:
         config = tomllib.load(f)
@@ -25,9 +24,5 @@ if __name__ == "__main__":
     client = OpenAI(api_key=secret)
     
     main(client, config)
-    
-    
-    
-    import time
-    time.sleep(10)
+
     quick_delete(client)

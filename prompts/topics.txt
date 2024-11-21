@@ -1,0 +1,25 @@
+Look through the revision material:
+
+1. Find every single topic and subtopic in the material. Ensure topics chosen don't overlap too much.
+2. Output a list of each topic and subtopic in the following json format:
+
+{
+    "topic1": ["subtopic1", "subtopic2", ...],
+    "topic2": ["subtopic1", "subtopic2", ...],
+    "topic3": ["subtopic1", "subtopic2", ...],
+}
+
+If a topic does not have a subtopic, leave the list empty. 
+
+## Example output:
+
+{
+    "Sets": ["Set operations", "Cardinality", "Notation", "Types of sets"],
+    "Combinatorics": ["Combinatorial proofs", "Inclusion-exclusion principle"],
+    "Relations": []
+}
+
+Your primary aims are:
+- Answer in the above JSON format. Do not write anything which would break formatting.
+- Ensure the topics and subtopics provided are at a high level and distinct from each other
+- Ensure the topics and subtopics cover the entirety of the accessible database/vector store

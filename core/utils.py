@@ -1,12 +1,15 @@
 from openai import OpenAI
 from dataclasses import dataclass, field
 import tomllib
+from pathlib import Path
 
-with open("config.toml", "rb+") as f:
+_parent = Path(__file__).resolve().parent.parent
+
+with (_parent / "config.toml").open("rb+") as f:
     cfg = tomllib.load(f)
-    default_model = cfg["assistant"]["model"]
-    
-    with open(cfg["assistant"]["default_prompt_main"], "r") as g:
+    default_model = cfg["openai"]["model"]
+
+    with (_parent / cfg["prompts"]["main"]).open("r") as g:
         default_prompt = g.read()
 
 @dataclass(kw_only=True)
@@ -63,3 +66,11 @@ def quick_delete(client: OpenAI, blacklist_file_ids: list[str] = [], blacklist_v
             print(f"Failed to delete vector store [{s}]. Error: {e}.")
 
     print(f"Deleted {store_count} vector store{'s' if store_count > 1 else ''}.\n")
+    
+if __name__ == "__main__":
+    with open("config.toml", "rb+") as f:
+        config = tomllib.load(f)
+        
+    client = OpenAI(api_key=config["openai"]["secret"])
+    quick_delete(client)
+    
