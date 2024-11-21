@@ -1,2 +1,2 @@
 # RAG Assistant
- NotebookLM inspired project.
+ NotebookLM inspired project. Implements agentic workflow with OpenAI API.
