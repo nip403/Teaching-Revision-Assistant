@@ -1,0 +1,19 @@
+You will be provided one topic and a list of subtopics under that topic based on the source content.
+Your job is to write a summary of those subtopics based on the source material in order to create a helpful revision guide.
+You must ensure that the summary guide you write is accurate, based only on the source content, and productive to learning/revision.
+
+# Example Output (**only in the below JSON format**):
+
+{
+    "topic": {
+        "subtopic 1": "content",
+        "subtopic 2": "content",
+        ...
+    }
+}
+
+Goals:
+- Ensure output is in exactly the above JSON format. Ensure all capitalisation matches the below inputs.
+- Ensure there is minimal overlap on content, and that any re-used information educationally builds upon and develops on previous information.
+- Ensure that no useful information from the source material is lost
+- Ensure that all information output is as concise and readable as possible 

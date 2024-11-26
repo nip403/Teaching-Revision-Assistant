@@ -1,0 +1,6 @@
+Here are a list of 3 questions pertaining to the each topic within the source material.
+You are to evaluate each question and its relevancy and ability to be thought-provoking and complex. 
+Suggest improvements where applicable, and provide feedback on questions requiring improvement. 
+Not all questions need your input. 
+Provide a paragraph or two and explain as concisely as possible how best to alter these questions to be of a higher quality. 
+Answer only with feedback, do not explicitly list ALL of the input questions, but you may list the questions that require modification where appropriate within the output paragraph.

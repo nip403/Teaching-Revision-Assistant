@@ -16,12 +16,12 @@ class Logger:
         )
         self.logger.addHandler(file_handler)
         
-        if verbose:
+        if verbose: # outputs to stdout
             sout_handler = logging.StreamHandler()
             sout_handler.setFormatter(
                 logging.Formatter("[%(levelname)s]: %(message)s")
             )
             self.logger.addHandler(sout_handler)
         
-    def log(self, message: str, level: str = "INFO") -> None:            
-        getattr(self.logger, level.lower(), logging.info)(message)
+    def log(self, message: str, level: str = "INFO") -> None:
+        getattr(self.logger, level.lower(), self.logger.info)(message) # overwrites root logger
