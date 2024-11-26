@@ -129,7 +129,7 @@ class TeachingAgent:
             ).data[0].content[0].text.value # return assistant response & run status
         
         else:
-            logger.log(f"Run prompt=[{prompt if len(prompt) < 10 else prompt[:10]}] failed with status: {run.status}.", "warning")
+            logger.log(f"Run prompt=[{prompt if len(prompt) < 20 else prompt[:20]+'...'}] failed with status: {run.status}.", "warning")
             return False, str()        
 
     def close(self) -> None: # "end" instance
@@ -176,7 +176,7 @@ class RevisionTool:
             )
             
             if not status:
-                log("Failed to generate revision notes for topic '{topic}'.")
+                log(f"Failed to generate revision notes for topic '{topic}'.")
                 continue
         
             try:
@@ -263,7 +263,7 @@ class RevisionTool:
                 client=self.client,
                 thread=thread,
                 assistant=self.selector_assistant,
-                prompt=f"f.read()\n\nQuestions: {all_qs}\n\nFeedback: {feedback}",
+                prompt=f"{f.read()}\n\nQuestions: {all_qs}\n\nFeedback: {feedback}",
                 logger=self.logger,
             )
         
