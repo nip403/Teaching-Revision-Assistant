@@ -1,5 +1,6 @@
 from openai import OpenAI
 import asyncio
+from functools import partial
 import os
 import json
 from typing import NewType, Callable
@@ -11,10 +12,11 @@ Thread = NewType("Thread", object)
 VectorStore = NewType("Vector Store", object)
 
 class TeachingAgent:
-    def __init__(self, client: OpenAI, config: AssistantConfig | None = None, verbose: bool = True) -> None:
+    def __init__(self, client: OpenAI, config: AssistantConfig | None = None, verbosity: dict[str, bool | str] = {"verbose": True, "threshold": "debug"}) -> None:
         assert _validate(config), "Invalid Assistant config."
+        assert isinstance(verbosity, dict), "Invalid verbosity set."
         
-        self.logger = Logger(_parent / "sessions.log", verbose=verbose)
+        self.logger = Logger(_parent / "sessions.log", verbose=verbosity.get("verbose", True), threshold=verbosity.get("threshold", "debug"))
         self.client = client
         self.in_session = False
         self.thread = self.client.beta.threads.create()
@@ -91,7 +93,7 @@ class TeachingAgent:
                 thread=thread, 
                 assistant=self.assistant, 
                 prompt=next_msg, 
-                logger=self.logger
+                logger=self.logger,
             )
             
             if not status: # run call failed
@@ -106,7 +108,6 @@ class TeachingAgent:
             return 
         
         self.in_session = True
-        
         asyncio.run(self._session())
         self.in_session = False
         
@@ -122,7 +123,7 @@ class TeachingAgent:
         )
         
         if run.status == "completed":
-            logger.log(f"Run prompt=[{prompt if len(prompt) < 10 else prompt[:10]}] completed.")
+            logger.log(f"Run prompt=[{prompt if len(prompt) < 20 else prompt[:20]+'...'}] completed.", "debug")
             return True, client.beta.threads.messages.list(
                 thread_id=thread.id,
             ).data[0].content[0].text.value # return assistant response & run status
@@ -136,6 +137,8 @@ class TeachingAgent:
         self.ra.close()
         self.logger.log("Deleted assistants.")
         self.client.beta.threads.delete(self.thread.id)
+        self.client.beta.vector_stores
+        
         self.logger.log("Ended session. Create a new instance of TeachingAgent() for a new session.")
         
 class RevisionTool:
@@ -144,12 +147,13 @@ class RevisionTool:
         self.client = client
         self.vector_store = vector_store
 
-        self.log = lambda m, l="info": logger.log(f"[GEN_SUMMARY]: {m}", l)
+        self.base_logger = logger
+        self.log = lambda m, l="info": self.base_logger.log(f"[GEN_SUMMARY]: {m}", l)
         self.logger = type(
-                "Logger[Overview]", 
-                (object, ), 
-                {"log": self.log},
-            ), # a cool yet horrible use case for metaclasses
+            "Logger[Overview]", 
+            (object, ), 
+            {"log": partial(self.log)}
+        )() # a cool yet horrible use case for metaclasses`
         
     async def _revision_guide(self, topics: dict[str, list[str]], log: Callable[[str, str], None]) -> dict[str, dict[str, str]]: # topic: {subtopic: content} 
         """
@@ -159,24 +163,29 @@ class RevisionTool:
         thread = self.client.beta.threads.create()
         revision_sheet = {}
         
-        with open(cfg["prompts"]["summary_gen"], "r+") as f:
-            for topic, subtopics in topics.items():
-                status, resp = TeachingAgent._handle_run_step(
-                    client=self.client,
-                    thread=thread,
-                    assistant=self.assistant,
-                    prompt=f"{f.read()}\n\nBelow are the topic and list of subtopics you are to create a revision sheet for:\nTopic: {topic}\n\t{'\n\t- '.join(subtopics)}",
-                )
+        with open(cfg["prompts"]["summary_gen"], "r") as f:
+            p = f.read()
+            
+        for topic, subtopics in topics.items():
+            status, resp = TeachingAgent._handle_run_step(
+                client=self.client,
+                thread=thread,
+                assistant=self.assistant,
+                prompt=f"{p}\n\nBelow are the topic and list of subtopics you are to create a revision sheet for:\nTopic: {topic}\n\t{'\n\t- '.join(subtopics)}",
+                logger=self.logger,
+            )
+            
+            if not status:
+                log("Failed to generate revision notes for topic '{topic}'.")
+                continue
+        
+            try:
+                revision_sheet[topic] = json.loads(resp)[topic] # {subtopic: content}
                 
-                if not status:
-                    log("Failed to generate revision notes for topic [{topic}].")
-                    continue
-                
-                try:
-                    revision_sheet[topic] = json.loads(resp)[topic] # {subtopic: content}
-                    
-                except:
-                    log(f"Topic [{topic}] was returned in an inncorrect format.")
+            except:
+                log(f"Topic [{topic}] was returned in an incorrect format: {resp}", "debug")
+            
+            log(f"Generated revision notes for topic '{topic}'.")
         
         self.client.beta.threads.delete(thread.id)
         
@@ -187,7 +196,7 @@ class RevisionTool:
         Generate a list of n questions which learners may ask about the revision material.      
         """
         
-        with open(cfg["prompts"]["gen_questions"], "r+") as f:
+        with open(cfg["prompts"]["gen_questions"], "r") as f:
             self.faq_assistant = self.client.beta.assistants.create(
                 name="FAQ Generator",
                 instructions=f.read(),
@@ -200,7 +209,7 @@ class RevisionTool:
                 }
             )
         
-        with open(cfg["prompts"]["pick_questions"], "r+") as f:
+        with open(cfg["prompts"]["pick_questions"], "r") as f:
             self.selector_assistant = self.client.beta.assistants.create( 
                 name="FAQ Selector",
                 instructions=f.read().replace("[NUM_OF_QUESTIONS]", str(n)),
@@ -233,7 +242,7 @@ class RevisionTool:
         
         # 2: Evaluate
         
-        with open(cfg["prompts"]["eval_questions", "r+"]) as f:
+        with open(cfg["prompts"]["eval_questions"], "r") as f:
             status, feedback = TeachingAgent._handle_run_step(
                 client=self.client,
                 thread=thread,
@@ -249,13 +258,14 @@ class RevisionTool:
         
         # 3: Finalise
         
-        status, qs = TeachingAgent._handle_run_step(
-            client=self.client,
-            thread=thread,
-            assistant=self.selector_assistant,
-            prompt="",
-            logger=self.logger,
-        )
+        with open(cfg["prompts"]["pick_questions"], "r") as f:
+            status, qs = TeachingAgent._handle_run_step(
+                client=self.client,
+                thread=thread,
+                assistant=self.selector_assistant,
+                prompt=f"f.read()\n\nQuestions: {all_qs}\n\nFeedback: {feedback}",
+                logger=self.logger,
+            )
         
         self.client.beta.threads.delete(thread.id)
 
@@ -311,12 +321,17 @@ class RevisionTool:
         
         # Step 2: pass topics into pipelines
         
-        async with asyncio.TaskGroup() as tg:
-            revision = asyncio.create_task(self._revision_guide(topics, self.log)) 
-            questions = asyncio.create_task(self._questions(topics, self.log, n_questions))
-        
-        return topics, revision.result(), questions.result()
+        revision, questions = await asyncio.gather(
+            self._revision_guide(topics, self.log),
+            self._questions(topics, self.log, n_questions)
+        )
+
+        return topics, revision, questions
     
     def close(self) -> None:
-        self.client.beta.assistants.delete(self.faq_assistant.id)
-        self.client.beta.assistants.delete(self.selector_assistant.id)
+        try:
+            self.client.beta.assistants.delete(self.faq_assistant.id)
+            self.client.beta.assistants.delete(self.selector_assistant.id)
+            
+        except:
+            self.logger.log("Failed to delete helper assistants (likely from failed or interrupted execution of summary generation).")

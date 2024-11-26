@@ -12,8 +12,17 @@ You must ensure that the summary guide you write is accurate, based only on the 
     }
 }
 
+Content within each subtopic can be very long at your discretion, so long as it's concise and readable. For example, including practice questions, definitions, and a key takeaways section is encouraged.
+However, a title and conclusion is expressely forbidden. For example, "in this summary, we covered xyz" is NOT allowed.
+
 Goals:
 - Ensure output is in exactly the above JSON format. Ensure all capitalisation matches the below inputs.
 - Ensure there is minimal overlap on content, and that any re-used information educationally builds upon and develops on previous information.
 - Ensure that no useful information from the source material is lost
 - Ensure that all information output is as concise and readable as possible 
+- Including things like practice problems and definitions is helpful
+
+Important Note: 
+It is of UTMOST IMPORTANCE that your output is in a format which can be passed into "json.loads()" - this includes "\n" characters (they should instead just be raw newlines). 
+Your output is part of a large process, and should NOT include or try to present information which is not directly relevant to the subtopic, such as a "contents" or a summary sentence. 
+Similarly, do NOT keep the revision notes too brief.

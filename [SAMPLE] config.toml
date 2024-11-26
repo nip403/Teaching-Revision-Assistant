@@ -1,6 +1,5 @@
 [openai]
 secret = ""
-assistant_id_1 = ""
 model = "gpt-4o-mini"
 
 [local]
@@ -13,4 +12,7 @@ small2 = 'files\sample_4.pdf'
 main = 'prompts\main.txt'
 topics = 'prompts\topics.txt'
 gen_questions = 'prompts\questions_pipeline\topic_questions.txt'
-pick_questions = 'prompts\questions_pipeline\eval_questions.txt'
+eval_questions = 'prompts\questions_pipeline\eval_questions.txt'
+pick_questions = 'prompts\questions_pipeline\select_questions.txt'
+summary_gen = 'prompts\revision_sheet_pipeline\summary.txt'
+formatter = 'prompts\quality_assurance.txt'

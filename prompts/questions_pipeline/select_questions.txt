@@ -15,6 +15,6 @@ You can freely use the feedback provided to alter the questions to be more align
 }
 
 Goals:
-- Output in the above JSON format
+- Output in the above JSON format. Anything else, such as a paragraph explaining your decisions, will BREAK the code.
 - Select the best [NUM_OF_QUESTIONS] questions using the feedback provided
 - Alter the best questions or questions with the highest potential using the feedback

@@ -17,7 +17,6 @@ if __name__ == "__main__":
         config = tomllib.load(f)
         
     secret = config["openai"]["secret"]
-    assistant = config["openai"]["assistant_id_1"]
     client = OpenAI(api_key=secret)
     
     main(client, config)
