@@ -57,22 +57,28 @@ class TeachingAgent:
         self.ra = RevisionTool(self.assistant, self.client, self.vector_store, self.logger)
         self.logger.log("Initialised assistant and vector storage.", "debug")
     
-    def add_files(self, *filepaths: str | list[str]) -> None: # single or batch file upload to vector storage
+    def add_files(self, *filepaths: str | list[str], binaries: bool = False) -> None: # single or batch file upload to vector storage
         if isinstance(filepaths[0], list):
             filepaths = filepaths[0]
         
-        fps = []
-        for fp in filepaths:
-            if not os.path.exists(fp):
-                self.logger.log(f"'{fp}' does not exist. Skipped upload.", "warning")
-                continue
-            
-            fps.append(fp)
+        if not binaries:
+            fps = []
+            for fp in filepaths:
+                if not os.path.exists(fp):
+                    self.logger.log(f"'{fp}' does not exist. Skipped upload.", "warning")
+                    continue
+                
+                fps.append(fp)
+                
+            self.logger.log(f"Uploading {', '.join(fps)}...")
+                
+        else:
+            fps = filepaths[:]
+            self.logger.log(f"Uploading file binaries...")
         
-        self.logger.log(f"Uploading {', '.join(fps)}...")
         batch = self.client.beta.vector_stores.file_batches.upload_and_poll( # streaming done on their end
             vector_store_id=self.vector_store.id,
-            files=[open(fp, "rb") for fp in fps],
+            files=[open(fp, "rb") if not binaries else fp for fp in fps],
         )
         self.logger.log(f"Batch upload: {batch.status}")
         
@@ -101,6 +107,10 @@ class TeachingAgent:
             
             self.logger.log(f"Run response: {resp}")
             print(f"TeachingAgent: {resp}\n")
+            
+    async def _session_streamlit(self, callback: Callable) -> None:
+        self.st_summary = asyncio.create_task(self.ra.prep_overview()) # concurrently generate revision help - see RevisionTool()
+        self.st_summary.add_done_callback(callback)
         
     def session(self) -> None: # synchronous wrapper
         if self.in_session: # extra protection
@@ -110,6 +120,33 @@ class TeachingAgent:
         self.in_session = True
         asyncio.run(self._session())
         self.in_session = False
+        
+    def session_streamlit(self, callback: Callable) -> None:
+        if self.in_session:
+            self.logger.log("Attempted call of another session, returning.", "warning")
+            return 
+        
+        self.st_thread = self.client.beta.threads.create() # main thread for session
+        
+        self.in_session = True
+        asyncio.run(self._session_streamlit(callback))
+        
+    def converse_streamlit(self, prompt: str) -> str:
+        assert self.in_session
+        
+        status, resp = TeachingAgent._handle_run_step(
+            client=self.client, 
+            thread=self.st_thread, 
+            assistant=self.assistant, 
+            prompt=prompt, 
+            logger=self.logger,
+        )
+        
+        if not status: # run call failed
+            return "Failed to generate response."
+        
+        self.logger.log(f"Run response: {resp}")
+        return resp        
         
     @staticmethod
     def _handle_run_step(*, client: OpenAI, thread: Thread, assistant: Assistant, prompt: str, logger: Logger | None = None) -> list[bool, str]:
@@ -133,11 +170,13 @@ class TeachingAgent:
             return False, str()        
 
     def close(self) -> None: # "end" instance
+        self.in_session = False
+        
         self.client.beta.assistants.delete(self.assistant.id)
         self.ra.close()
         self.logger.log("Deleted assistants.")
         self.client.beta.threads.delete(self.thread.id)
-        self.client.beta.vector_stores
+        self.client.beta.vector_stores.delete(self.vector_store.id)
         
         self.logger.log("Ended session. Create a new instance of TeachingAgent() for a new session.")
         
