@@ -1,5 +1,4 @@
-from core.assistants import TeachingAgent
-from core.utils import quick_delete
+from TeachingAgent import TeachingAgent, quick_delete
 from openai import OpenAI
 import tomllib
 

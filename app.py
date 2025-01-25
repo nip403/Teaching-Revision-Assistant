@@ -1,5 +1,4 @@
-from core.assistants import TeachingAgent
-from core.utils import quick_delete
+from TeachingAgent import TeachingAgent, quick_delete
 import streamlit as st
 from openai import OpenAI
 import tomllib
@@ -18,9 +17,11 @@ if "session" not in st.session_state:
 # Main app for managing the session
 st.title("RAG Teaching Assistant")
 
-def callback(future: tuple):
-    res = future.result()
-    st.session_state["session"]["callback_result"] = res
+def callback(future: tuple) -> None:
+    _, revision, questions = future.result()
+    st.session_state["session"]["callback_result"] = revision
+    
+    # add questions to main page
 
 # Start a session
 if st.session_state["session"]["agent"] is None:

@@ -348,7 +348,7 @@ class RevisionTool:
         self.client.beta.threads.delete(thread_id=overview_thread.id)
         
         try:
-            if not resp:
+            if not status:
                 raise
             
             topics = json.loads(resp)
