@@ -3,7 +3,7 @@ import asyncio
 from functools import partial
 import os
 import json
-from typing import NewType, Callable
+from typing import NewType, Callable, Optional
 from .utils import AssistantConfig, _validate, cfg, _parent
 from .logger import Logger
 
@@ -12,7 +12,7 @@ Thread = NewType("Thread", object)
 VectorStore = NewType("Vector Store", object)
 
 class TeachingAgent:
-    def __init__(self, client: OpenAI, config: AssistantConfig | None = None, verbosity: dict[str, bool | str] = {"verbose": True, "threshold": "debug"}) -> None:
+    def __init__(self, client: OpenAI, config: Optional[AssistantConfig] = None, verbosity: dict[str, bool | str] = {"verbose": True, "threshold": "debug"}) -> None:
         assert _validate(config), "Invalid Assistant config."
         assert isinstance(verbosity, dict), "Invalid verbosity set."
         
@@ -82,8 +82,8 @@ class TeachingAgent:
         )
         self.logger.log(f"Batch upload: {batch.status}")
         
-    async def _session(self) -> None:
-        summary = asyncio.create_task(self.ra.prep_overview()) # concurrently generate revision help - see RevisionTool()
+    async def _session(self, num_faq_questions: Optional[int] = 5) -> None:
+        summary = asyncio.create_task(self.ra.prep_overview(num_faq_questions)) # concurrently generate revision help - see RevisionTool()
         summary.add_done_callback(lambda fut: print(f"Revision Overview Result: {fut.result()}"))
         thread = self.client.beta.threads.create() # main thread for session
         
@@ -108,17 +108,17 @@ class TeachingAgent:
             self.logger.log(f"Run response: {resp}")
             print(f"TeachingAgent: {resp}\n")
             
-    async def _session_streamlit(self, callback: Callable) -> None:
-        self.st_summary = asyncio.create_task(self.ra.prep_overview()) # concurrently generate revision help - see RevisionTool()
+    async def _session_streamlit(self, callback: Callable, num_faq_questions: Optional[int] = 5) -> None:
+        self.st_summary = asyncio.create_task(self.ra.prep_overview(num_faq_questions)) # concurrently generate revision help - see RevisionTool()
         self.st_summary.add_done_callback(callback)
         
-    def session(self) -> None: # synchronous wrapper
+    def session(self, num_faq_questions: Optional[int] = 5) -> None: # synchronous wrapper
         if self.in_session: # extra protection
             self.logger.log("Attempted call of another session, returning.", "warning")
             return 
         
         self.in_session = True
-        asyncio.run(self._session())
+        asyncio.run(self._session(num_faq_questions))
         self.in_session = False
         
     def session_streamlit(self, callback: Callable) -> None:
@@ -149,7 +149,7 @@ class TeachingAgent:
         return resp        
         
     @staticmethod
-    def _handle_run_step(*, client: OpenAI, thread: Thread, assistant: Assistant, prompt: str, logger: Logger | None = None) -> list[bool, str]:
+    def _handle_run_step(*, client: OpenAI, thread: Thread, assistant: Assistant, prompt: str, logger: Optional[Logger] = None) -> list[bool, str]:
         if logger is None:
             logger = Logger(_parent / "sessions.log")
         
@@ -320,7 +320,7 @@ class RevisionTool:
         except:
             return list()
         
-    async def prep_overview(self, n_questions: int = 5) -> list[dict[str, list[str]], str, list[str]]:
+    async def prep_overview(self, num_faq_questions: Optional[int] = 5) -> list[dict[str, list[str]], str, list[str]]:
         """
         Runs 2 pipelines concurrently:
         
@@ -362,7 +362,7 @@ class RevisionTool:
         
         revision, questions = await asyncio.gather(
             self._revision_guide(topics, self.log),
-            self._questions(topics, self.log, n_questions)
+            self._questions(topics, self.log, num_faq_questions)
         )
 
         return topics, revision, questions
